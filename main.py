@@ -1,4 +1,5 @@
 import os
+import glob
 import subprocess
 import paramiko
 import yaml
@@ -6,7 +7,7 @@ import requests
 
 # LOAD CONFIG FILE
 def load_config():
-    with open('./config.yaml', 'r') as file:
+    with open('./scripts/homeassistant-backup/config.yaml', 'r') as file:
         config = yaml.safe_load(file)
     return config
 
@@ -18,8 +19,8 @@ ssh_host = config['ssh_host']
 ssh_port = config['ssh_port']
 homeassistant_url = config['homeassistant_url']
 homeassistant_token = config['homeassistant_token']
-backup_dir = config.get('backup_dir', '/backup')  # Default backup directory
-remote_backup_dir = config.get('remote_backup_dir', '/remote/backup/path')  # Default remote backup directory
+backup_dir = config.get('backup_dir', 'backups/')  # Default backup directory
+remote_backup_dir = config.get('remote_backup_dir', 'homeassistant-backup/')  # Default remote backup directory
 # Create a backup of Home Assistant
 def create_backup():
     headers = {
@@ -27,17 +28,18 @@ def create_backup():
         'Authorization': 'Bearer %s' % homeassistant_token
     }
     data = {}
-    response = requests.post(f"http://%s/api/services/backup/create" % homeassistant_url, headers=headers, json=data)
+    response = requests.post(f"%s/api/services/backup/create" % homeassistant_url, headers=headers, json=data)
     if response.status_code == 200:
         print("Backup created successfully.")
         return True
     else:
         print("Failed to create backup.")
+        print(respone.status_code)
         return None
 
 def get_backup_file():
-    backup_files = os.listdir(backup_dir)
-    newest_file = max(backup_files, key=os.path.getctime)
+    backup_files = glob.glob('%s*' % backup_dir)
+    newest_file = max(backup_files, key=os.path.getmtime)
     print(f"Newest backup file: {newest_file}")
     return newest_file
 
@@ -49,8 +51,9 @@ def upload_backup(backup_file):
     ssh.connect(ssh_host, port=ssh_port, username=ssh_user, password=ssh_password)
     
     sftp = ssh.open_sftp()
-    local_path = os.path.join(backup_dir, backup_file)
-    remote_path = os.path.join(remote_backup_dir, backup_file)
+    local_path = os.path.join(backup_file)
+    print(local_path)
+    remote_path = os.path.join(backup_file)
     sftp.put(local_path, remote_path)
     sftp.close()
     ssh.close()
@@ -67,4 +70,3 @@ def main():
 if __name__ == "__main__":
     main()
     
-api/services/backup/create
