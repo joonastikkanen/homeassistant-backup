@@ -4,6 +4,11 @@ import subprocess
 import paramiko
 import yaml
 import requests
+import datetime
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # LOAD CONFIG FILE
 def load_config():
@@ -21,6 +26,7 @@ homeassistant_url = config['homeassistant_url']
 homeassistant_token = config['homeassistant_token']
 backup_dir = config.get('backup_dir', 'backups/')  # Default backup directory
 remote_backup_dir = config.get('remote_backup_dir', 'homeassistant-backup/')  # Default remote backup directory
+
 # Create a backup of Home Assistant
 def create_backup():
     headers = {
@@ -30,17 +36,18 @@ def create_backup():
     data = {}
     response = requests.post(f"%s/api/services/backup/create" % homeassistant_url, headers=headers, json=data)
     if response.status_code == 200:
-        print("Backup created successfully.")
+        logging.info("Backup created successfully.")
         return True
     else:
-        print("Failed to create backup.")
-        print(respone.status_code)
+        logging.error("Failed to create backup.")
+        logging.error(f"Response status code: {response.status_code}")
         return None
 
 def get_backup_file():
-    backup_files = glob.glob('%s*' % backup_dir)
+    os.chdir(backup_dir)  # Change directory to backup_dir
+    backup_files = glob.glob('*')
     newest_file = max(backup_files, key=os.path.getmtime)
-    print(f"Newest backup file: {newest_file}")
+    logging.info(f"Newest backup file: {newest_file}")
     return newest_file
 
 # Upload the backup file to the server
@@ -51,13 +58,19 @@ def upload_backup(backup_file):
     ssh.connect(ssh_host, port=ssh_port, username=ssh_user, password=ssh_password)
     
     sftp = ssh.open_sftp()
+    
+    # Create a new folder with month and year
+    now = datetime.datetime.now()
+    folder_name = now.strftime("%Y-%m")
+    remote_folder_path = os.path.join(remote_backup_dir, folder_name)
+    sftp.mkdir(remote_folder_path)
+    
     local_path = os.path.join(backup_file)
-    print(local_path)
-    remote_path = os.path.join(backup_file)
+    remote_path = os.path.join(remote_folder_path, os.path.basename(backup_file))
     sftp.put(local_path, remote_path)
     sftp.close()
     ssh.close()
-    print("Backup uploaded successfully.")
+    logging.info("Backup uploaded successfully.")
 
 # Main function
 def main():
@@ -65,8 +78,7 @@ def main():
         backup_file = create_backup()
         upload_backup(backup_file)
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     main()
-    
