@@ -35,20 +35,9 @@ def get_backup_file():
 
 # Create a backup of Home Assistant
 def create_backup():
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer %s' % homeassistant_token
-    }
-    data = {}
-    response = requests.post(f"%s/api/services/backup/create" % homeassistant_url, headers=headers, json=data)
-    if response.status_code == 200:
-        logging.info("Backup created successfully.")
-        backup_file = get_backup_file()
-        return backup_file
-    else:
-        logging.error("Failed to create backup.")
-        logging.error(f"Response status code: {response.status_code}")
-        return None
+    hass.services.call('backup', 'create', {})
+    backup_file = get_backup_file()
+    return backup_file
 # Upload the backup file to the server
 def upload_backup(backup_file):
     
