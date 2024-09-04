@@ -1,30 +1,18 @@
 import os
 import glob
 import paramiko
-import yaml
-import requests
 import datetime
 import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# LOAD CONFIG FILE
-def load_config():
-    with open('./scripts/homeassistant-backup/config.yaml', 'r') as file:
-        config = yaml.safe_load(file)
-    return config
-
-# Set variables from config file
-config = load_config()
-ssh_user = config['ssh_user']
-ssh_password = config['ssh_password']
-ssh_host = config['ssh_host']
-ssh_port = config['ssh_port']
-homeassistant_url = config['homeassistant_url']
-homeassistant_token = config['homeassistant_token']
-backup_dir = config.get('backup_dir', 'backups/')  # Default backup directory
-remote_backup_dir = config.get('remote_backup_dir', 'homeassistant-backup/')  # Default remote backup directory
+ssh_user = data.get('ssh_user')
+ssh_password = data.get('ssh_password')
+ssh_host = data.get('ssh_host')
+ssh_port = data.get('ssh_port', 22)
+backup_dir = data.get('backup_dir', 'backups/')  # Default backup directory
+remote_backup_dir = data.get('remote_backup_dir', 'homeassistant-backup/')  # Default remote backup directory
 
 def get_backup_file():
     os.chdir(backup_dir)  # Change directory to backup_dir
@@ -35,7 +23,7 @@ def get_backup_file():
 
 # Create a backup of Home Assistant
 def create_backup():
-    hass.services.call('backup', 'create', {})
+    hass.services.call('backup', 'create')
     backup_file = get_backup_file()
     return backup_file
 # Upload the backup file to the server
