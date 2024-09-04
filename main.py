@@ -1,6 +1,5 @@
 import os
 import glob
-import subprocess
 import paramiko
 import yaml
 import requests
@@ -27,6 +26,13 @@ homeassistant_token = config['homeassistant_token']
 backup_dir = config.get('backup_dir', 'backups/')  # Default backup directory
 remote_backup_dir = config.get('remote_backup_dir', 'homeassistant-backup/')  # Default remote backup directory
 
+def get_backup_file():
+    os.chdir(backup_dir)  # Change directory to backup_dir
+    backup_files = glob.glob('*')
+    newest_file = max(backup_files, key=os.path.getmtime)
+    logging.info(f"Newest backup file: {newest_file}")
+    return newest_file
+
 # Create a backup of Home Assistant
 def create_backup():
     headers = {
@@ -37,22 +43,15 @@ def create_backup():
     response = requests.post(f"%s/api/services/backup/create" % homeassistant_url, headers=headers, json=data)
     if response.status_code == 200:
         logging.info("Backup created successfully.")
-        return True
+        backup_file = get_backup_file()
+        return backup_file
     else:
         logging.error("Failed to create backup.")
         logging.error(f"Response status code: {response.status_code}")
         return None
-
-def get_backup_file():
-    os.chdir(backup_dir)  # Change directory to backup_dir
-    backup_files = glob.glob('*')
-    newest_file = max(backup_files, key=os.path.getmtime)
-    logging.info(f"Newest backup file: {newest_file}")
-    return newest_file
-
 # Upload the backup file to the server
 def upload_backup(backup_file):
-    backup_file = get_backup_file()
+    
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(ssh_host, port=ssh_port, username=ssh_user, password=ssh_password)
